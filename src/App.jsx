@@ -1,9 +1,10 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from "axios";
 import './App.css'
 import { useState } from 'react';
 
 const App = () => {
+  const queryClient = useQueryClient();
 
   const [todoItem, setTodoItem] = useState("");
 
@@ -32,9 +33,11 @@ const App = () => {
 
   const mutation = useMutation({
     mutationFn: addTodo,
+    onSuccess: () => {
+      // 첫 번째 인자에 query key가 들어가면 됌
+      queryClient.invalidateQueries(["todos"]);
+    }
   });
-
-
 
   if(isPending) {
     return <div>로딩중입니다...</div>
@@ -48,7 +51,7 @@ const App = () => {
   
   return (
     <>
-      <h1>Tanstack Query</h1>
+      <h1>Tanstack Query TodoList</h1>
       <form onSubmit={(e) => {
         e.preventDefault();
 
