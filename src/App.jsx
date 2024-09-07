@@ -4,91 +4,120 @@ import './App.css'
 import { useState } from 'react';
 
 const App = () => {
+  // QueryClient를 사용해 캐시된 데이터를 업데이트하거나 무효화할 수 있습니다.
   const queryClient = useQueryClient();
 
+  // Todo를 추가하기 위해 필요한 상태
   const [todoItem, setTodoItem] = useState("");
 
+  // 수정할 Todo 항목을 관리하는 상태
+  const [editTodo, setEditTodo] = useState(null);
+
+  // Todos 데이터를 가져오는 비동기 함수
   const fetchTodos = async () => {
-    // axios를 사용하여 json-server의 todos를 가져옴
     const response = await axios.get("http://localhost:4000/todos");
     return response.data;
   }
-  
+
+  // 새로운 Todo를 추가하는 비동기 함수
   const addTodo = async (newTodo) => {
-    await axios.post("http://localhost:4000/todos", newTodo)
+    await axios.post("http://localhost:4000/todos", newTodo);
   }
 
+  // 기존 Todo를 업데이트하는 비동기 함수
+  const updateTodo = async (updatedTodo) => {
+    await axios.put(`http://localhost:4000/todos/${updatedTodo.id}`, updatedTodo);
+  }
 
-  /* 
-   * [1] useQuery는 두 개의 인자를 받음 
-   * 리액트 쿼리가 자동으로 데이터의 종류를 queryKey로 캐싱함
-   * useQuery로 호출한 데이터를 app.jsx에서쓰고있지만 A,B,C 컴포넌트에서 불러와도 DB까지안가고 캐싱되어 사용함
-   * 리액트 쿼리에서 useQuery를 쓰는 중요한 개념임
-  */
+  // Todo를 삭제하는 비동기 함수
+  const deleteTodo = async (id) => {
+    await axios.delete(`http://localhost:4000/todos/${id}`);
+  }
 
-  const { data: todos , isPending, isError } = useQuery({      
-      queryKey: ["todos"], // 배열로 받음
-      queryFn:fetchTodos // 비동기 함수
+  // useQuery: Todo 리스트를 서버에서 가져와 캐싱하고 컴포넌트에서 사용할 수 있게 함
+  const { data: todos, isPending, isError } = useQuery({
+    queryKey: ["todos"],
+    queryFn: fetchTodos
   });
 
-  const mutation = useMutation({
+  // useMutation: Todo를 추가하는 요청
+  const addMutation = useMutation({
     mutationFn: addTodo,
     onSuccess: () => {
-      // 첫 번째 인자에 query key가 들어가면 됌
+      queryClient.invalidateQueries(["todos"]); // 데이터를 새로고침
+    }
+  });
+
+  // useMutation: Todo를 업데이트하는 요청
+  const updateMutation = useMutation({
+    mutationFn: updateTodo,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["todos"]);
+      setEditTodo(null); // 수정 상태를 초기화
+    }
+  });
+
+  // useMutation: Todo를 삭제하는 요청
+  const deleteMutation = useMutation({
+    mutationFn: deleteTodo,
+    onSuccess: () => {
       queryClient.invalidateQueries(["todos"]);
     }
   });
 
-  if(isPending) {
+  if (isPending) {
     return <div>로딩중입니다...</div>
   }
 
-  if(isError) {
+  if (isError) {
     return <div>데이터 조회 중 오류가 발생했습니다...</div>
   }
 
-  console.log("data", todos);
-  
   return (
     <>
       <h1>Tanstack Query TodoList</h1>
       <form onSubmit={(e) => {
         e.preventDefault();
 
-        // useMutation 로직 필요
-        mutation.mutate({
-          title: todoItem,
-          isDone: false
-        })
+        if (editTodo) {
+          // 수정모드에서는 기존 Todo를 업데이트함
+          updateMutation.mutate({
+            ...editTodo,
+            title: todoItem
+          });
+        } else {
+          // 추가모드에서는 새로운 Todo를 추가함
+          addMutation.mutate({
+            title: todoItem,
+            isDone: false
+          });
+        }
+
+        setTodoItem("");
       }}>
-        <input 
-          type="text" 
+        <input
+          type="text"
           value={todoItem}
           onChange={(e) => setTodoItem(e.target.value)}
         />
-        <button>추가</button>
-        <ul>
-          {
-            todos.map(todo => {
-              return (
-                <li 
-                  key={todo.id} 
-                  style={{ 
-                    display: "flex", 
-                    alignItems: "center",
-                    gap: "10px",                  
-                  }}
-                >
-                  <h4>{todo.title}</h4>
-                  <p>{todo.isDone ? "Done" : "Not Done"}</p>
-                </li>
-              )
-            })
-          }
-        </ul>
-      </form>      
+        <button>{editTodo ? "수정" : "추가"}</button>
+      </form>
+
+      <ul>
+        {todos.map(todo => (
+          <li key={todo.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h4>{todo.title}</h4>
+            <p>{todo.isDone ? "Done" : "Not Done"}</p>
+            <button onClick={() => deleteMutation.mutate(todo.id)}>삭제</button>
+            <button onClick={() => {
+              setTodoItem(todo.title);
+              setEditTodo(todo); // 수정모드로 전환
+            }}>수정</button>
+          </li>
+        ))}
+      </ul>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
