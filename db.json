@@ -2,7 +2,7 @@
   "todos": [
     {
       "id": "1",
-      "title": "리액트 공부하기",
+      "title": "리액트 공부하기 1",
       "isDone": true
     },
     {
@@ -13,11 +13,6 @@
     {
       "id": "c62e",
       "title": "invalidateQueries 메모메모",
-      "isDone": false
-    },
-    {
-      "id": "629a",
-      "title": "test",
       "isDone": false
     }
   ]
